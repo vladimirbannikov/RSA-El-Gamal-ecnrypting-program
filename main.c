@@ -10,6 +10,15 @@ short pow_16(short pow)
     }
     return result;
 }
+void vvod(char *input)
+{
+    short count = 0, symbol;
+    while((symbol = getc(stdin))!='\n'){
+        input[count] = (char)symbol;
+        count++;
+    }
+    input[count] = '\n';
+}
 void printff(short int* a, int size) // вспомогательная функция для печати массива
 {
     for(int i = size-1; i>=0; i--){
@@ -566,9 +575,318 @@ void decrypt(char *name_of_infile, char *name_of_secret, char *name_of_outfile)
 }
 
 int main() {
-    /*char *infile = "infile.txt", *outfile = "outfile.txt", *pubkey = "pubkey.txt";
-    encrypt(pubkey,infile,outfile);*/
-    printf("zdarova vvedi komandu\n");
-    //скоро напишу функцию для определения и вызова команды
+    char fl_for_error = 0, fl_for_exit = 0, counter_for_error = 0;
+    char com_encrypt[] = "crypt encrypt";
+    char com_decrypt[] = "crypt decrypt";
+    char com_genkey[] = "crypt genkey";
+    char com_help[] = "crypt --help";
+    char com_check[] = "crypt check";
+    char com_sign[] = "crypt sign";
+    char com_exit[] = "exit";
+    char main_string[150] = {'\0'};
+    while (fl_for_exit==0){
+        vvod(main_string);
+        if(strstr(main_string, com_help)!=NULL){
+            int symbol = 0;
+            FILE *help = fopen("help.txt", "r");
+            while((symbol = getc(help))!=EOF){
+                printf("%c",symbol);
+            }
+            fclose(help);
+        }
+        else counter_for_error++;
+        if(strstr((const char *) main_string, com_genkey)!=NULL){
+            char *char_size = "--size";
+            char *char_pubkey = "--pubkey";
+            char *char_secret = "--secret";
+            char *name_pubkey;
+            char *name_secret;
+            int size = 0;
+            char *start = strstr(main_string, char_size);
+            short count = 0, count_file = 0;
+            if(start==NULL){
+                if(fl_for_error==0) printf("Error, please try again\n");
+                fl_for_error = 1;
+            }
+            else {
+                start += (strlen(char_secret));
+                count = 0, count_file = 0;
+                while((*(start + count)>'9')||(*(start + count)<'0')) count++;
+                while((*(start + count)<='9')||(*(start + count)>='0')){
+                    size = size*10 + (int)(*(start + count)) - 48;
+                    count++;
+                }
+                if(*(start + count)!=' '||size/256!=0){
+                    printf("Wrong size, please try again\n");
+                    fl_for_error = 1;
+                }
+            }
+            start = strstr(main_string, char_secret);
+            if(start==NULL){
+                if(fl_for_error==0) printf("Error, please try again\n");
+                fl_for_error = 1;
+            }
+            else {
+                start += (strlen(char_secret-1));
+                count = 0, count_file = 0;
+                while( ((*(start + count)>'z')||(*(start + count)<'a'))&&((*(start + count)>'Z')||(*(start + count)<'A'))
+                &&((*(start + count)>'9')||(*(start + count)<'0')) && (*(start + count)!='_') ) count++;
+                start+=count; count = 0;
+                while(*(start+count)!=' ') count++;
+                name_secret = (char*)calloc(count+1,sizeof(char));
+                count = 0;
+                while(*(start+count)!=' '){
+                    name_secret[count_file] = *(start+count);
+                    count_file++;
+                    count++;
+                }
+                FILE* secret = NULL;
+                secret = fopen(name_secret,"r");
+                if (secret==NULL) {
+                    printf("Error with file %s, please try again\n", name_secret);
+                    fl_for_error = 1;
+                } else fclose(secret);
+            }
+            start = strstr(main_string, char_pubkey);
+            if(start==NULL){
+                if(fl_for_error==0) printf("Error, please try again\n");
+                fl_for_error = 1;
+            }
+            else {
+                start += (strlen(char_pubkey));
+                count = 0, count_file = 0;
+                while( ((*(start + count)>'z')||(*(start + count)<'a'))&&((*(start + count)>'Z')||(*(start + count)<'A'))
+                &&((*(start + count)>'9')||(*(start + count)<'0')) && (*(start + count)!='_') ) count++;
+                start+=count; count = 0;
+                while(*(start+count)!=' '&&*(start+count)!='\n') count++;
+                name_pubkey = (char*)calloc(count+1,sizeof(char));
+                count = 0;
+                while(*(start+count)!=' '&&*(start+count)!='\n'){
+                    name_pubkey[count_file] = *(start+count);
+                    count_file++;
+                    count++;
+                }
+                FILE* pubkey = NULL;
+                pubkey = fopen(name_pubkey,"r");
+                if (pubkey==NULL) {
+                    printf("Error with file %s, please try again\n", name_pubkey);
+                    fl_for_error = 1;
+                } else fclose(pubkey);
+            }
+            if (fl_for_error==0){
+                crypt_genkey(size,name_pubkey,name_secret);
+                printf("Success!\n");
+            } else fl_for_error = 0;
+        }
+        else counter_for_error++;
+        if(strstr(main_string, com_encrypt)!=NULL){
+            char *char_infile = "--infile";
+            char *char_outfile = "--outfile";
+            char *char_pubkey = "--pubkey";
+            char *name_infile;
+            char *name_pubkey;
+            char *name_outfile;
+            char *start = strstr(main_string, char_infile);
+            short count = 0, count_file = 0;
+            if(start==NULL){
+                if(fl_for_error==0) printf("Error, please try again\n");
+                fl_for_error = 1;
+            }
+            else {start += (strlen(char_infile));
+                count = 0, count_file = 0;
+                while( ((*(start + count)>'z')||(*(start + count)<'a'))&&((*(start + count)>'Z')||(*(start + count)<'A'))
+                &&((*(start + count)>'9')||(*(start + count)<'0')) && (*(start + count)!='_') ) count++;
+                start+=count; count = 0;
+                while(*(start+count)!=' ') count++;
+                name_infile = (char*)calloc(count+1,sizeof(char));
+                count = 0;
+                while(*(start+count)!=' '){
+                    name_infile[count_file] = *(start+count);
+                    count_file++;
+                    count++;
+                }
+                FILE* infile = NULL;
+                infile = fopen(name_infile,"r");
+                if (infile==NULL) {
+                    printf("Error with file %s, please try again\n", name_infile);
+                    fl_for_error = 1;
+                } else fclose(infile);
+                //
+                start = strstr(main_string, char_pubkey);
+                if(start==NULL){
+                    if(fl_for_error==0) printf("Error, please try again\n");
+                    fl_for_error = 1;
+                }
+                else {
+                    start += (strlen(char_pubkey));
+                    short count = 0, count_file = 0;
+                    while( ((*(start + count)>'z')||(*(start + count)<'a'))&&((*(start + count)>'Z')||(*(start + count)<'A'))
+                    &&((*(start + count)>'9')||(*(start + count)<'0')) && (*(start + count)!='_') ) count++;
+                    start+=count; count = 0;
+                    while(*(start+count)!=' ') count++;
+                    name_pubkey = (char*)calloc(count+1,sizeof(char));
+                    count = 0;
+                    while(*(start+count)!=' '){
+                        name_pubkey[count_file] = *(start+count);
+                        count_file++;
+                        count++;
+                    }
+                    FILE* pubkey = NULL;
+                    pubkey = fopen(name_pubkey,"r");
+                    if (pubkey==NULL) {
+                        printf("Error with file %s, please try again\n", name_pubkey);
+                        fl_for_error = 1;
+                    } else fclose(pubkey);
+                }
+                //
+                start = strstr(main_string, char_outfile);
+                if(start==NULL){
+                    if(fl_for_error==0) printf("Error, please try again\n");
+                    fl_for_error = 1;
+                }
+                else {
+                    start += (strlen(char_outfile));
+                    count = 0, count_file = 0;
+                    while( ((*(start + count)>'z')||(*(start + count)<'a'))&&((*(start + count)>'Z')||(*(start + count)<'A'))
+                    &&((*(start + count)>'9')||(*(start + count)<'0')) && (*(start + count)!='_') ) count++;
+                    start+=count; count = 0;
+                    while(*(start+count)!=' '&&*(start+count)!='\n') count++;
+                    name_outfile = (char*)calloc(count+1,sizeof(char));
+                    count = 0;
+                    while(*(start+count)!=' '&&*(start+count)!='\n'){
+                        name_outfile[count_file] = *(start+count);
+                        count_file++;
+                        count++;
+                    }
+                    FILE* outfile = NULL;
+                    outfile = fopen(name_outfile,"r");
+                    if (outfile==NULL) {
+                        printf("Error with file %s, please try again\n", name_outfile);
+                        fl_for_error = 1;
+                    } else fclose(outfile);
+                }
+                if (fl_for_error==0){
+                    encrypt(name_pubkey,name_infile,name_outfile);
+                    printf("Success!\n");
+                } else fl_for_error = 0;
+            }
+        }
+        else counter_for_error++;
+        if(strstr((const char *) main_string, com_decrypt)!=NULL){
+            char *char_infile = "--infile";
+            char *char_outfile = "--outfile";
+            char *char_secret = "--secret";
+            char *name_infile;
+            char *name_secret;
+            char *name_outfile;
+            char *start = strstr(main_string, char_infile);
+            short count = 0, count_file = 0;
+            if(start==NULL){
+                if(fl_for_error==0) printf("Error, please try again\n");
+                fl_for_error = 1;
+            }
+            else {start += (strlen(char_infile));
+                count = 0, count_file = 0;
+                while( ((*(start + count)>'z')||(*(start + count)<'a'))&&((*(start + count)>'Z')||(*(start + count)<'A'))
+                &&((*(start + count)>'9')||(*(start + count)<'0')) && (*(start + count)!='_') ) count++;
+                start+=count; count = 0;
+                while(*(start+count)!=' ') count++;
+                name_infile = (char*)calloc(count+1,sizeof(char));
+                count = 0;
+                while(*(start+count)!=' '){
+                    name_infile[count_file] = *(start+count);
+                    count_file++;
+                    count++;
+                }
+                FILE* infile = NULL;
+                infile = fopen(name_infile,"r");
+                if (infile==NULL) {
+                    printf("Error with file %s, please try again\n", name_infile);
+                    fl_for_error = 1;
+                } else fclose(infile);
+                //
+                start = strstr(main_string, char_secret);
+                if(start==NULL){
+                    if(fl_for_error==0) printf("Error, please try again\n");
+                    fl_for_error = 1;
+                }
+                else {
+                    start += (strlen(char_secret));
+                    count = 0, count_file = 0;
+                    while( ((*(start + count)>'z')||(*(start + count)<'a'))&&((*(start + count)>'Z')||(*(start + count)<'A'))
+                    &&((*(start + count)>'9')||(*(start + count)<'0')) && (*(start + count)!='_') ) count++;
+                    start+=count; count = 0;
+                    while(*(start+count)!=' ') count++;
+                    name_secret = (char*)calloc(count+1,sizeof(char));
+                    count = 0;
+                    while(*(start+count)!=' '){
+                        name_secret[count_file] = *(start+count);
+                        count_file++;
+                        count++;
+                    }
+                    FILE* secret = NULL;
+                    secret = fopen(name_secret,"r");
+                    if (secret==NULL) {
+                        printf("Error with file %s, please try again\n", name_secret);
+                        fl_for_error = 1;
+                    } else fclose(secret);
+                }
+                //
+                start = strstr(main_string, char_secret);
+                if(start==NULL){
+                    if(fl_for_error==0) printf("Error, please try again\n");
+                    fl_for_error = 1;
+                }
+                else {
+                    start += (strlen(char_outfile));
+                    count = 0, count_file = 0;
+                    while( ((*(start + count)>'z')||(*(start + count)<'a'))&&((*(start + count)>'Z')||(*(start + count)<'A'))
+                    &&((*(start + count)>'9')||(*(start + count)<'0')) && (*(start + count)!='_') ) count++;
+                    start+=count; count = 0;
+                    while(*(start+count)!=' '&&*(start+count)!='\n') count++;
+                    name_outfile = (char*)calloc(count+1,sizeof(char));
+                    count = 0;
+                    while(*(start+count)!=' '&&*(start+count)!='\n'){
+                        name_outfile[count_file] = *(start+count);
+                        count_file++;
+                        count++;
+                    }
+                    FILE* outfile = NULL;
+                    outfile = fopen(name_secret,"r");
+                    if (outfile==NULL) {
+                        printf("Error with file %s, please try again\n", name_secret);
+                        fl_for_error = 1;
+                    } else fclose(outfile);
+                }
+                if (fl_for_error==0){
+                    decrypt(name_secret,name_infile,name_outfile);
+                    printf("Success!\n");
+                } else fl_for_error = 0;
+            }
+        }
+        else counter_for_error++;
+        if(strstr(main_string, com_sign)!=NULL){
+            //команда для подписи, сделаю позже
+        }
+        else counter_for_error++;
+        if(strstr(main_string, com_check)!=NULL){
+            //команда для подписи, сделаю позже
+        }
+        else counter_for_error++;
+        if(strstr(main_string, com_exit)!=NULL){
+            fl_for_exit = 1;
+        }
+        else counter_for_error++;
+        if (counter_for_error==7){
+            printf("Unknown command, please try again\n");
+        }
+        if (counter_for_error<6){
+            printf("Error, please try again\n");
+        }
+        for(int i = 0; i<150; i++){
+            main_string[i] = '\0';
+        }
+        counter_for_error = 0;
+    }
     return 0;
 }
