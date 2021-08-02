@@ -2,6 +2,34 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <stdint.h>
+uint16_t CRC_16(short *input, unsigned int size)
+{
+    unsigned int counter = 0;
+    uint16_t del = 0x8005; //полином
+    uint16_t crc = 0;
+    int8_t symbol, bit16, bit8;
+    while (counter<size) {
+        symbol = input[counter];
+        for (int i = 0; i < 8; i++) {
+            bit8 = bit16 = 0;
+            if((symbol & 0x80)!=0) bit8 = 1;
+            symbol <<= 1;
+            if((crc & 0x8000) != 0) bit16 = 1;
+            crc <<= 1;
+            crc += bit8;
+            if (bit16) crc ^= del;
+        }
+        counter++;
+    }
+    for (int i = 0; i < 16; i++) {
+        bit16 = 0;
+        if((crc & 0x8000) != 0) bit16 = 1;
+        crc <<= 1;
+        if (bit16) crc ^= del;
+    }
+    return crc;
+}
 short pow_16(short pow)
 {
     short result = 1;
@@ -519,7 +547,7 @@ void encrypt(char *name_of_pubkey, char *name_of_file, char *name_of_encrypt_fil
     fclose(input);
     size_of_input = k_symbols*2;
     short *input_mass = byte_symbols_to_array(char_symbols,k_symbols);
-    printff(input_mass,size_of_input);
+    //printff(input_mass,size_of_input);
     FILE* output = NULL;
     output = fopen(name_of_encrypt_file, "w");
     short *encrypting = NULL;
@@ -527,8 +555,8 @@ void encrypt(char *name_of_pubkey, char *name_of_file, char *name_of_encrypt_fil
     short *n = NULL, *e = NULL, **p_e = &e, **p_n = &n;
     int size_n = 0, size_e = 0, *pointer_size_n = &size_n, *pointer_size_e = &size_e;
     get_public_key(name_of_pubkey, p_e, p_n, pointer_size_e, pointer_size_n);
-    printff(n,size_n);
-    printff(e,size_e);
+    //printff(n,size_n);
+    //printff(e,size_e);
     encrypting = module_pow(input_mass,e,n,size_of_input,size_e,size_n,encrypting_size_pointer);
     printff(encrypting,encrypting_size);
     short *encrypting_char = array_to_byte_symbols(encrypting,encrypting_size);
@@ -537,7 +565,7 @@ void encrypt(char *name_of_pubkey, char *name_of_file, char *name_of_encrypt_fil
     }
     fclose(output);
 }
-void decrypt(char *name_of_infile, char *name_of_secret, char *name_of_outfile)
+void decrypt(char *name_of_secret, char *name_of_infile, char *name_of_outfile)
 {
     FILE *infile = fopen(name_of_infile, "r");
     short *infile_char, size_infile_char = 0;
@@ -573,7 +601,101 @@ void decrypt(char *name_of_infile, char *name_of_secret, char *name_of_outfile)
     }
     fclose(output);
 }
-
+void sign(char *name_of_secret, char *name_of_infile, char *name_of_signfile)
+{
+    FILE *infile = fopen(name_of_infile, "r");
+    short *infile_char, size_infile_char = 0;
+    int symbol = 0;
+    while((symbol = getc(infile))!=EOF){
+        size_infile_char++;
+    }
+    fclose(infile);
+    int counter = 0;
+    infile = fopen(name_of_infile, "r");
+    infile_char = (short*)calloc(size_infile_char, sizeof(short));
+    while((symbol = getc(infile))!=EOF){
+        infile_char[counter] = symbol;
+        counter++;
+    }
+    fclose(infile);
+    uint16_t crc = CRC_16(infile_char,size_infile_char);
+    uint16_t crc_copy = crc;
+    short crc_size = 4;
+    short *crc_array = (short*)calloc(crc_size, sizeof(short));
+    for(counter = 0; counter<crc_size; counter++){
+        crc_array[counter] = crc_copy%16;
+        crc_copy/=16;
+    }
+    counter = 0;
+    short *p = NULL, *q = NULL, *d = NULL, **p_p = &p, **p_q = &q, **p_d = &d;
+    int size_p = 0, size_q = 0, size_d = 0, *pointer_size_p = &size_p, *pointer_size_q = &size_q, *pointer_size_d = &size_d;
+    get_private_key(name_of_secret,p_d,p_q,p_p,pointer_size_d,pointer_size_q,pointer_size_p);
+    short *n = NULL; int size_n = 0, *pointer_size_n = &size_n;
+    n = umnojenie(q,p,size_q,size_p,pointer_size_n,0,0);
+    int sign_size = 0, *sign_size_pointer = &sign_size;
+    short *sign = NULL;
+    sign = module_pow(crc_array,d,n,crc_size,size_d,size_n,sign_size_pointer);
+    FILE* output = NULL;
+    short *char_output = array_to_byte_symbols(sign,sign_size);
+    output = fopen(name_of_signfile, "w");
+    for(int i = sign_size/2-1; i>=0; i--){
+        fprintf(output, "%c", char_output[i]);
+    }
+    fclose(output);
+}
+void check(char *name_of_pubkey, char *name_of_infile, char *name_of_signfile)
+{
+    FILE *infile = fopen(name_of_infile, "r");
+    short *infile_char, size_infile_char = 0;
+    int symbol = 0;
+    while((symbol = getc(infile))!=EOF){
+        size_infile_char++;
+    }
+    fclose(infile);
+    int counter = 0;
+    infile = fopen(name_of_infile, "r");
+    infile_char = (short*)calloc(size_infile_char, sizeof(short));
+    while((symbol = getc(infile))!=EOF){
+        infile_char[counter] = symbol;
+        counter++;
+    }
+    fclose(infile);
+    uint16_t crc = CRC_16(infile_char,size_infile_char);
+    uint16_t crc_copy = crc;
+    short crc_size = 4;
+    short *crc_array = (short*)calloc(crc_size, sizeof(short));
+    for(counter = 0; counter<crc_size; counter++){
+        crc_array[counter] = crc_copy%16;
+        crc_copy/=16;
+    }
+    counter = 0;
+    short *check = NULL;
+    int check_size = 0, *check_size_pointer = &check_size;
+    short *n = NULL, *e = NULL, **p_e = &e, **p_n = &n;
+    int size_n = 0, size_e = 0, *pointer_size_n = &size_n, *pointer_size_e = &size_e;
+    get_public_key(name_of_pubkey, p_e, p_n, pointer_size_e, pointer_size_n);
+    check = module_pow(crc_array,e,n,crc_size,size_e,size_n,check_size_pointer);
+    short *check_char = array_to_byte_symbols(check,check_size);
+    int check_char_size = check_size/2;
+    FILE *signfile = NULL;
+    signfile = fopen(name_of_signfile, "r");
+    short *sign_char, size_sign_char = 0;
+    symbol = 0;
+    while((symbol = getc(signfile))!=EOF){
+        size_sign_char++;
+    }
+    fclose(signfile);
+    counter = 0;
+    signfile = fopen(name_of_signfile, "r");
+    sign_char = (short*)calloc(size_sign_char, sizeof(short));
+    while((symbol = getc(signfile))!=EOF){
+        sign_char[counter] = symbol;
+        counter++;
+    }
+    fclose(signfile);
+    if(comparison(check_char,sign_char,check_char_size,size_sign_char)==0) printf("Signature is correct\n");
+    else printf("Signature is incorrect\n");
+}
 int main() {
     char fl_for_error = 0, fl_for_exit = 0, counter_for_error = 0;
     char com_encrypt[] = "crypt encrypt";
