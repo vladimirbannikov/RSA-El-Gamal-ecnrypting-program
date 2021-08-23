@@ -1,6 +1,7 @@
 # courcework
 мужиииик надо делать курсач
 !!!!!
+
 short* delenie(short* a, short* b, int* la, int* lb, int* len_rez)
 {
     short* current;
