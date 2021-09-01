@@ -301,29 +301,49 @@ short *simple_euclid(short *a, short *b, int size_a, int size_b, int *result_siz
 }
 short int *module_pow(short int *number, short int *pow, short *module, int size_number, int size_pow, int size_module, int* size_of_result)
 {
-    short *result = NULL, fl_for_equality = 0;
-    short *counter = (short*)calloc(size_pow, sizeof(short));
-    int current_size = size_number, *pointer_current_size = &current_size;
-    counter[0] = 1;
-    result = (short int*)calloc(current_size, sizeof(short int));
-    short **ptr_result = &result;
-    for(int i = 0; i<current_size; i++) result[i] = number[i];
-    while(fl_for_equality==0){
-        result = umnojenie(result,number,current_size,size_number,pointer_current_size,1,ptr_result);
-        ptr_result = &result;
-        result = module_func(result,module,current_size,size_module,pointer_current_size,1,ptr_result);
-        ptr_result = &result;
-        counter[0]++;
-        for (int i = 0; i < size_pow-1; i++){
-            counter[i+1] = counter[i]/16 + counter[i+1];
-            counter[i] = counter[i]%16;
+    unsigned int powbin_size = size_pow*4;
+    short *powbin = (short*)calloc(powbin_size,sizeof(short));
+    unsigned int count2 = 0;
+    short current_number = 0;
+    for(int i = 0; i<size_pow;i++){
+        current_number = pow[i];
+        for(int j = 0; j<4;j++){
+            powbin[count2] = current_number%2;
+            current_number/=2;
+            count2++;
         }
-       // printff(counter,size_pow,stdout);
-        if(comparison(counter, pow, size_pow, size_pow)==0)
-            fl_for_equality = 1;
     }
-    free(counter);
-    *size_of_result = current_size;
+    count2 = 0;
+    if(powbin[powbin_size-1]==0){
+        while(powbin[powbin_size-1]==0) powbin_size--;
+        if(powbin_size==0) powbin_size = 1;
+        short *vsp = (short*)calloc(powbin_size, sizeof(short int));
+        memcpy(vsp,powbin,powbin_size*sizeof(short));
+        free(powbin);
+        powbin = NULL;
+        powbin = (short*)calloc(powbin_size, sizeof(short));
+        memcpy(powbin,vsp,powbin_size*sizeof(short));
+        free(vsp);
+    }
+    short *result = NULL;
+    int current_size = 1, *ptr_current_size = &current_size;
+    result = (short*)calloc(current_size,sizeof(short));
+    result[0] = 1;
+    short **ptr_result = &result;
+    for(long int i = powbin_size - 1; i >= 0; i--){
+        if(powbin[i]==1){
+            result = umnojenie(result,number,current_size,size_number,ptr_current_size,1,ptr_result);
+            ptr_result = &result;
+        }
+        if(i!=0){
+            result = umnojenie(result,result,current_size,current_size,ptr_current_size,1,ptr_result);
+            ptr_result = &result;
+        }
+        result = module_func(result,module,current_size,size_module,ptr_current_size,1,ptr_result);
+        ptr_result = &result;
+    }
+    free(powbin);
+    if(size_of_result!=NULL) *size_of_result = current_size;
     return result;
 }
 int return_number_10(FILE* stream)
@@ -421,6 +441,7 @@ void get_p_and_g(int size, short int** p, short int** g, int* sizeof_p, int* siz
         }
         free(vsp);
     }
+    fclose(base_of_p_g);
 }
 void gen_q_and_p(int size, short int** p, short int** q, int* sizeof_p, int* sizeof_q)
 {
@@ -478,13 +499,14 @@ void gen_q_and_p(int size, short int** p, short int** q, int* sizeof_p, int* siz
         }
         free(vsp);
     }
+    fclose(base_of_q_p);
 }
 short int* gen_pubkey(int *size_d) //рандомно заполняем массив-ключ
 {
     srand(time(NULL));
-    *size_d = rand()%3 + 3;
+    *size_d = rand()%5 + 5;
     short int *random_key = (short int*)calloc(*size_d, sizeof(short int));
-    random_key[*size_d-1] = rand()%9+1;
+    random_key[*size_d-1] = rand()%15+1;
     for(int i = 1; i<*size_d-2; i++) {
         random_key[i] = rand() % 16;
     }
@@ -686,7 +708,7 @@ void rsa_encrypt(char *name_of_pubkey, char *name_of_file, char *name_of_encrypt
     get_public_key(name_of_pubkey, p_e, p_n, pointer_size_e, pointer_size_n);
     encrypting = module_pow(input_mass,e,n,size_of_input,size_e,size_n,encrypting_size_pointer);
     short *encrypting_char = array_to_byte_symbols(encrypting,encrypting_size);
-    for(int i = encrypting_size/2-1; i>=0; i--){
+    for(int i = 0; i < encrypting_size/2; i++){
         fprintf(output, "%c", encrypting_char[i]);
     }
     fclose(output);
@@ -723,7 +745,7 @@ void rsa_decrypt(char *name_of_secret, char *name_of_infile, char *name_of_outfi
     FILE* output = NULL;
     short *char_output = array_to_byte_symbols(decrypting,decrypting_size);
     output = fopen(name_of_outfile, "w");
-    for(int i = decrypting_size/2-1; i>=0; i--){
+    for(int i = decrypting_size/2 - 1; i >= 0; i--){
         fprintf(output, "%c", char_output[i]);
     }
     fclose(output);
@@ -766,7 +788,7 @@ void rsa_sign(char *name_of_secret, char *name_of_infile, char *name_of_signfile
     FILE* output = NULL;
     short *char_output = array_to_byte_symbols(sign,sign_size);
     output = fopen(name_of_signfile, "w");
-    for(int i = sign_size/2-1; i>=0; i--){
+    for(int i = 0; i<sign_size/2; i++){
         fprintf(output, "%c", char_output[i]);
     }
     fclose(output);
@@ -798,14 +820,6 @@ void rsa_check(char *name_of_pubkey, char *name_of_infile, char *name_of_signfil
         crc_copy/=16;
     }
     counter = 0;
-    short *check = NULL;
-    int check_size = 0, *check_size_pointer = &check_size;
-    short *n = NULL, *e = NULL, **p_e = &e, **p_n = &n;
-    int size_n = 0, size_e = 0, *pointer_size_n = &size_n, *pointer_size_e = &size_e;
-    get_public_key(name_of_pubkey, p_e, p_n, pointer_size_e, pointer_size_n);
-    check = module_pow(crc_array,e,n,crc_size,size_e,size_n,check_size_pointer);
-    short *check_char = array_to_byte_symbols(check,check_size);
-    int check_char_size = check_size/2;
     FILE *signfile = NULL;
     signfile = fopen(name_of_signfile, "r");
     short *sign_char, size_sign_char = 0;
@@ -818,13 +832,21 @@ void rsa_check(char *name_of_pubkey, char *name_of_infile, char *name_of_signfil
     signfile = fopen(name_of_signfile, "r");
     sign_char = (short*)calloc(size_sign_char, sizeof(short));
     while((symbol = getc(signfile))!=EOF){
-        sign_char[counter] = symbol;
+        sign_char[size_sign_char - counter - 1] = symbol;
         counter++;
     }
     fclose(signfile);
-    if(comparison(check_char,sign_char,check_char_size,size_sign_char)==0) printf("Signature is correct\n");
+    short *int_sign = byte_symbols_to_array(sign_char,size_sign_char);
+    int size_int_sign = size_sign_char*2;
+    short *check = NULL;
+    int check_size = 0, *check_size_pointer = &check_size;
+    short *n = NULL, *e = NULL, **p_e = &e, **p_n = &n;
+    int size_n = 0, size_e = 0, *pointer_size_n = &size_n, *pointer_size_e = &size_e;
+    get_public_key(name_of_pubkey, p_e, p_n, pointer_size_e, pointer_size_n);
+    check = module_pow(int_sign,e,n,size_int_sign,size_e,size_n,check_size_pointer);
+    if(comparison(check,crc_array,check_size,crc_size)==0) printf("Signature is correct\n");
     else printf("Signature is incorrect\n");
-    free(check);free(sign_char);free(n);free(e);free(crc_array);free(infile_char);
+    free(check);free(sign_char);free(n);free(e);free(crc_array);free(infile_char); free(int_sign);
 }
 void eg_genkey(int size_of_key, char *nameof_public, char *nameof_secret)
 {
@@ -835,8 +857,7 @@ void eg_genkey(int size_of_key, char *nameof_public, char *nameof_secret)
     int size_p = 0, size_g = 0, size_y = 0, size_x = 0;
     int *p_size_ptr = &size_p, *g_size_ptr = &size_g, *y_size_ptr = &size_y;
     get_p_and_g(size_of_key,p_ptr,g_ptr,p_size_ptr,g_size_ptr);
-    //size_x = rand()%(size_p/2)+4;
-    size_x = 2;
+    size_x = rand()%(size_p/2)+size_p/4;
     x = (short *) calloc(size_x,sizeof(short));
     for(int i = 0; i<size_x;i++){
         if(i==size_x-1) x[i] = rand()%15 + 1;
@@ -879,15 +900,15 @@ void eg_encrypt(char *name_of_pubkey, char *name_of_infile, char *name_of_outfil
     int size_y = 0, size_g = 0, size_p = 0, *pointer_size_p = &size_p, *pointer_size_y = &size_y, *pointer_size_g = &size_g;
     get_secret_key(name_of_pubkey,p_p,p_g,p_y,pointer_size_p,pointer_size_g,pointer_size_y);//получаем открытый ключ с помощью ранее написанной функции
     short *k = NULL; int size_k = 0, *pointer_size_k = &size_k;
-    srand(time(NULL));
-    size_k = rand()%2 + 3;
     short _1[1] = {1};
     short *p_1 = NULL;
     int size_p_1 = 0, *p_1_size_ptr = &size_p_1;
     p_1 = long_subtraction(p,_1,size_p,1,p_1_size_ptr,0,NULL);
+    srand(time(NULL));
+    size_k = rand()%(size_p_1/2) + size_p_1/4;
     k = (short*)calloc(size_k,sizeof(short));
     k[0] = 1;
-    k[size_k-1] = rand()%5+1;
+    k[size_k-1] = rand()%15+1; //переделать
     short *vsp_euq = NULL; int vsp_euq_size, *vsp_euq_size_ptr = &vsp_euq_size, summ = 0;
     short fl_end = 0, fl_size_out = 0;
     while(fl_end==0&&fl_size_out==0){
@@ -912,28 +933,13 @@ void eg_encrypt(char *name_of_pubkey, char *name_of_infile, char *name_of_outfil
     short *b = NULL;
     int b_size = 0, *b_size_pointer = &b_size;
     b = module_pow(y,k,p,size_y,size_k,size_p,b_size_pointer);
-    b = umnojenie(input_mass,b,size_of_input,b_size,b_size_pointer,0,NULL);
-    b = module_func(b,p,b_size,size_p,b_size_pointer,0,NULL);
+    short **b_ptr = &b;
+    b = umnojenie(b,input_mass,b_size,size_of_input,b_size_pointer,1,b_ptr);
+    b_ptr = &b;
+    b = module_func(b,p,b_size,size_p,b_size_pointer,1,b_ptr);
     FILE *output = fopen(name_of_outfile, "w");
-    for(int i = a_size-1; i>=0; i--){
-        if(a[i]<10) fprintf(output,"%d", a[i]);
-        if(a[i]==10) fprintf(output,"A");
-        if(a[i]==11) fprintf(output,"B");
-        if(a[i]==12) fprintf(output,"C");
-        if(a[i]==13) fprintf(output,"D");
-        if(a[i]==14) fprintf(output,"E");
-        if(a[i]==15) fprintf(output,"F");
-    }
-    fprintf(output,"\n");
-    for(int i = b_size-1; i>=0; i--){
-        if(b[i]<10) fprintf(output,"%d", b[i]);
-        if(b[i]==10) fprintf(output,"A");
-        if(b[i]==11) fprintf(output,"B");
-        if(b[i]==12) fprintf(output,"C");
-        if(b[i]==13) fprintf(output,"D");
-        if(b[i]==14) fprintf(output,"E");
-        if(b[i]==15) fprintf(output,"F");
-    }
+    printff(a,a_size,output);
+    printff(b,b_size,output);
     free(p_1);free(y);free(p);free(char_symbols);free(k);free(input_mass);free(g);free(b);
     fclose(output);
 }
@@ -945,13 +951,14 @@ void eg_decrypt(char *name_of_secret, char *name_of_infile, char *name_of_outfil
     while((symbol = getc(input))!=(int)'\n'){
         size_a++;
     }
-    while((symbol = getc(input))!=EOF){
+    while((symbol = getc(input))!=(int)'\n'){
         size_b++;
     }
     fclose(input);
     a = (short*)calloc(size_a, sizeof(short));
     b = (short*)calloc(size_b, sizeof(short));
     int counter = 0;
+    input = fopen(name_of_infile, "r");
     while((symbol = getc(input))!=(int)'\n'){
         if(symbol<58) a[size_a - counter - 1] = symbol - 48;
         else a[size_a - counter - 1] = symbol - 55;
@@ -966,7 +973,7 @@ void eg_decrypt(char *name_of_secret, char *name_of_infile, char *name_of_outfil
     fclose(input);
     short *p = NULL, *x = NULL, **p_p = &p, **p_x = &x;
     int size_p = 0, size_x = 0, *pointer_size_p = &size_p, *pointer_size_x = &size_x;
-    get_public_key(name_of_secret, p_p, p_x, pointer_size_p, pointer_size_p); //в secret записывается p и x. сначала x, затем p
+    get_public_key(name_of_secret, p_p, p_x, pointer_size_p, pointer_size_x); //в secret записывается p и x. сначала x, затем p
     short *decrypting = NULL;
     int decrypting_size = 0, *decrypting_size_pointer = &decrypting_size;
     short _1[1] = {1};
@@ -974,16 +981,119 @@ void eg_decrypt(char *name_of_secret, char *name_of_infile, char *name_of_outfil
     pow = long_subtraction(p,_1,size_p,1,pow_size_ptr,0,NULL);
     pow = long_subtraction(pow,x,pow_size,size_x,pow_size_ptr,1,NULL);
     decrypting = module_pow(a,pow,p,size_a,pow_size,size_p,decrypting_size_pointer);
-    decrypting = umnojenie(decrypting,b,decrypting_size,size_b,decrypting_size_pointer,0,0);
-    decrypting = module_func(decrypting,p,decrypting_size,size_p,decrypting_size_pointer,0,NULL);
+    short **ptr_decrypting = &decrypting;
+    decrypting = umnojenie(decrypting,b,decrypting_size,size_b,decrypting_size_pointer,1,ptr_decrypting);
+    ptr_decrypting = &decrypting;
+    decrypting = module_func(decrypting,p,decrypting_size,size_p,decrypting_size_pointer,1,ptr_decrypting);
     FILE* output = NULL;
     short *char_output = array_to_byte_symbols(decrypting,decrypting_size);
     output = fopen(name_of_outfile, "w");
-    for(int i = decrypting_size/2-1; i>=0; i--){
+    for(int i = decrypting_size/2 - 1;i>=0; i--){
         fprintf(output, "%c", char_output[i]);
     }
     fclose(output);
     free(pow);free(p);free(x);free(a);free(b);free(char_output);free(decrypting);
+}
+void eg_check(char *name_of_pubkey, char *name_of_infile, char *name_of_signfile)
+{
+    FILE *infile = fopen(name_of_infile, "r");
+    short *infile_char, size_infile_char = 0;
+    int symbol = 0;
+    while((symbol = getc(infile))!=EOF){
+        size_infile_char++;
+    }
+    fclose(infile);
+    int counter = 0;
+    infile = fopen(name_of_infile, "r");
+    infile_char = (short*)calloc(size_infile_char, sizeof(short));
+    while((symbol = getc(infile))!=EOF){
+        infile_char[counter] = symbol;
+        counter++;
+    }
+    fclose(infile);
+    uint16_t crc = CRC_16(infile_char,size_infile_char);
+    uint16_t crc_copy = crc;
+    short crc_size = 4;
+    short *crc_array = (short*)calloc(crc_size, sizeof(short));
+    for(counter = 0; counter<crc_size; counter++){
+        crc_array[counter] = crc_copy%16;
+        crc_copy/=16;
+    }
+    counter = 0;
+    FILE *signfile = NULL;
+    signfile = fopen(name_of_signfile, "r");
+    short *sign_char, size_sign_char = 0;
+    symbol = 0;
+    while((symbol = getc(signfile))!=EOF){
+        size_sign_char++;
+    }
+    fclose(signfile);
+    counter = 0;
+    signfile = fopen(name_of_signfile, "r");
+    sign_char = (short*)calloc(size_sign_char, sizeof(short));
+    while((symbol = getc(signfile))!=EOF){
+        sign_char[size_sign_char - counter - 1] = symbol;
+        counter++;
+    }
+    fclose(signfile);
+    short *int_sign = byte_symbols_to_array(sign_char,size_sign_char);
+    int size_int_sign = size_sign_char*2;
+    short *y = NULL, *g = NULL, *p = NULL, **p_p = &p, **p_y = &y, **p_g = &g;
+    int size_y = 0, size_g = 0, size_p = 0, *pointer_size_p = &size_p, *pointer_size_y = &size_y, *pointer_size_g = &size_g;
+    get_secret_key(name_of_pubkey,p_p,p_g,p_y,pointer_size_p,pointer_size_g,pointer_size_y);//получаем открытый ключ с помощью ранее написанной функции
+    short *r = NULL, *sign = NULL, **p_r = &r, **p_sign = &sign;
+    int size_r = 0, size_sign = 0, *pointer_size_r = &size_r, *pointer_size_sign = &size_sign;
+    FILE *input = fopen(name_of_signfile, "r");
+    short *a = NULL, *b = NULL;
+    while((symbol = getc(input))!=(int)'\n'){
+        size_r++;
+    }
+    while((symbol = getc(input))!=(int)'\n'){
+        size_sign++;
+    }
+    fclose(input);
+    r = (short*)calloc(size_r, sizeof(short));
+    sign = (short*)calloc(size_sign, sizeof(short));
+    counter = 0;
+    input = fopen(name_of_signfile, "r");
+    while((symbol = getc(input))!=(int)'\n'){
+        if(symbol<58) a[size_r - counter - 1] = symbol - 48;
+        else r[size_r - counter - 1] = symbol - 55;
+        counter++;
+    }
+    counter = 0;
+    while((symbol = getc(input))!=(int)'\n'){
+        if(symbol<58) sign[size_sign - counter - 1] = symbol - 48;
+        else sign[size_sign - counter - 1] = symbol - 55;
+        counter++;
+    }
+    fclose(input);
+    if(comparison(r,p,size_r,size_p)==2){
+        printf("Signature in incorrect\n");
+        free(infile_char);free(crc_array);free(sign_char);free(sign);free(p);free(r);free(g);free(y);
+        return;
+    }
+    if(comparison(sign,p,size_sign,size_p)==2){
+        printf("Signature in incorrect\n");
+        free(infile_char);free(crc_array);free(sign_char);free(sign);free(p);free(r);free(g);free(y);
+        return;
+    }
+    short *left1 = NULL,*left2 = NULL, *right = NULL, **left1_ptr, **right_ptr;
+    int size_left1 = 0, size_left2 = 0, size_right = 0, *size_right_ptr = &size_right, *size_left1_ptr = &size_left1,*size_left2_ptr = &size_left2;
+    left1 = module_pow(y,r,p,size_y,size_r,size_p,size_left1_ptr);
+    left2 = module_pow(r,sign,p,size_r,size_sign,size_p,size_left2_ptr);
+    left1_ptr = &left1;
+    left1 = umnojenie(left1,left2,size_left1,size_left2,size_left1_ptr,1,left1_ptr);
+    free(left2);
+    left1_ptr = &left1;
+    left1 = module_func(left1,p,size_left1,size_p,size_left1_ptr,1,left1_ptr);
+    right = module_pow(g,crc_array,p,size_g,crc_size,size_p,size_right_ptr);
+    if(comparison(left1,right,size_left1,size_right)==0){
+        printf("Signature is correct\n");
+    } else{
+        printf("Signature is incorrect\n");
+    }
+    free(infile_char);free(crc_array);free(sign_char);free(sign);free(p);free(r);free(g);free(y);free(left1);free(right);
 }
 int main() {
     char fl_for_error = 0, fl_for_exit = 0, counter_for_error = 0;
@@ -1381,7 +1491,7 @@ int main() {
                     } else fclose(sigfile);
                 }
                 if (fl_for_error==0){
-                    rsa_sign(name_secret,name_infile,name_sigfile);
+                    if(fl_rsa==1) rsa_sign(name_secret,name_infile,name_sigfile);
                     printf("Success!\n");
                 } else fl_for_error = 0;
             }
@@ -1474,8 +1584,8 @@ int main() {
                     } else fclose(sigfile);
                 }
                 if (fl_for_error==0){
-                    rsa_check(name_pubkey,name_infile,name_sigfile);
-                    //printf("Success!\n");
+                    if(fl_rsa==1) rsa_check(name_pubkey,name_infile,name_sigfile);
+                    if(fl_eg==1) eg_check(name_pubkey,name_infile,name_sigfile);
                 } else fl_for_error = 0;
             }
         }
