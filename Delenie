@@ -1,0 +1,38 @@
+short* delenie_(short int* number, short* delitel, int size_number, int size_delitel, int* pointer_size_rez, int free_number, short** ptr_number)
+{
+    int size_cur = size_delitel + 1, size_rezult = size_number;
+    short* current_number = (short*)calloc(size_cur, sizeof(short));
+    short* rezult = (short*)calloc(size_number, sizeof(short));
+    size_cur = 0;
+
+    for (int i = size_number - 1; i >= 0; i--)
+    {
+        if (size_cur > 0)
+        {
+            int t = 0;
+            for (int j = size_cur; j >= 0; j--)
+            {
+                current_number[j + 1] = current_number[j];
+            }
+            current_number[0] = number[i];
+            size_cur++;
+        }
+        else
+        {
+            current_number[0] = number[i];
+            size_cur++;
+        }
+        short cur_rez = 0;
+        while (comparison(current_number, delitel, size_cur, size_delitel) != 2)
+        {
+            current_number = long_subtraction(current_number, delitel, size_cur, size_delitel, &size_cur, 0, NULL);
+            cur_rez++;
+        }
+        rezult[i] = cur_rez;
+    }
+
+    while (rezult[size_rezult - 1] == 0)
+        size_rezult--;
+    *pointer_size_rez = size_rezult;
+    return rezult;
+}
