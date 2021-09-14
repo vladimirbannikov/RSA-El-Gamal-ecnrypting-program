@@ -1,13 +1,15 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <stdint.h>
-typedef struct long16_int{
+#define size_of_vvod 450
+/*typedef struct long16_int{
     short *array;
     int size;
     int *size_ptr;
-}long_int;
+}long_int;*/
 uint16_t CRC_16(short *input, unsigned int size)
 {
     unsigned int counter = 0;
@@ -47,6 +49,10 @@ void vvod(char *input)
 {
     short count = 0, symbol;
     while((symbol = getc(stdin))!='\n'){
+        if(count==size_of_vvod){
+            input[0] = '\0';
+            return;
+        }
         input[count] = (char)symbol;
         count++;
     }
@@ -65,7 +71,7 @@ void printff(short int* a, int size,FILE *stream) // вспомогательн�
     }
     fprintf(stream,"\n");
 }
-short *slojenie(short *a, short *b,int size1, int size2, int *result_size_ptr, short free_a)
+short *slojenie(short *a, short *b,int size1, int size2, int *result_size_ptr, short free_a, short **a_ptr)
 {
     int len, lenm, fl;
     if (size1 > size2) {
@@ -100,11 +106,11 @@ short *slojenie(short *a, short *b,int size1, int size2, int *result_size_ptr, s
         xy = NULL;
         xy = (short*)calloc(len, sizeof(short));
         memcpy(xy,vsp,len*sizeof(short));
-        //free(vsp);
+        free(vsp);
     }
     if(free_a==1) {
-        free(a);
-        a = NULL;
+        free(*a_ptr);
+        *a_ptr = NULL;
     }
     if(result_size_ptr!=NULL) *result_size_ptr = len;
     return xy;
@@ -247,6 +253,7 @@ short int *module_func(short int *number, short *module, int size_number, int si
         if(free_number==1){
             free(*ptr_number);
         }
+        *pointer_size_number = size_result;
         return result;
     }
     else{
@@ -282,6 +289,124 @@ short int *module_func(short int *number, short *module, int size_number, int si
         return result;
     }
 }
+short* delenie(short *number, short* delitel, int size_number, int size_delitel, int* pointer_size_rez, int free_number, short** ptr_number)
+{
+    int size_cur = size_delitel + 1, size_rezult = size_number;
+    short* current_number = (short*)calloc(size_cur, sizeof(short));
+    short* rezult = (short*)calloc(size_number, sizeof(short));
+    size_cur = 0;
+    for (int i = size_number - 1; i >= 0; i--)
+    {
+        if (size_cur > 0)
+        {
+            int t = 0;
+            for (int j = size_cur; j >= 0; j--)/**/
+            {
+                current_number[j + 1] = current_number[j];
+            }
+            current_number[0] = number[i];
+            size_cur++;
+        }
+        else
+        {
+            current_number[0] = number[i];
+            size_cur++;
+        }
+        short cur_rez = 0;
+        while (comparison(current_number, delitel, size_cur, size_delitel) != 2&&comparison(current_number, delitel, size_cur, size_delitel) != 0)
+        {
+            current_number = long_subtraction(current_number, delitel, size_cur, size_delitel, &size_cur, 1, &current_number);
+            cur_rez++;
+        }
+        rezult[i] = cur_rez;
+    }
+    for(int i = 0; i<size_rezult-1;i++){
+        rezult[i + 1] += (rezult[i] / 16);
+        rezult[i] = rezult[i] % 16;
+    }
+    if(rezult[size_rezult-1]==0){
+        while (rezult[size_rezult - 1] == 0)
+            size_rezult--;
+        short *vsp = (short*)calloc(size_rezult, sizeof(short int));
+        memcpy(vsp,rezult,size_rezult*sizeof(short));
+        free(rezult);
+        rezult = NULL;
+        rezult = (short*)calloc(size_rezult, sizeof(short));
+        memcpy(rezult,vsp,size_rezult*sizeof(short));
+        free(vsp);
+    }
+    if(free_number==1){
+        free(*ptr_number);
+        *ptr_number = NULL;
+    }
+    *pointer_size_rez = size_rezult;
+    return rezult;
+}
+void long_gcd(short *a, int size_a, short *b, int size_b, short **d, int *size_d, short **x, int *size_x, short **y, int *size_y, short *sign_x,short *sign_y)
+{
+    if(size_b == 1 && b[0] == 0){
+        *d = (short*)calloc(size_a,sizeof(short));
+        *size_d = size_a;
+        memcpy(*d,a,size_a*sizeof(short));
+        *x = (short*)calloc(1,sizeof(short));
+        *size_x = 1;
+        *x[0] = 1;
+        *sign_x = 0;
+        *y = (short*)calloc(1,sizeof(short));
+        *size_y = 1;
+        *y[0] = 0;
+        *sign_y = 0;
+        return;
+    }
+    short *mod = NULL; int size_mod = 0;
+    mod = module_func(a,b,size_a,size_b,&size_mod,0,NULL);
+    long_gcd(b,size_b,mod,size_mod,d,size_d,x,size_x,y,size_y,sign_x,sign_y);
+    short *s = NULL, sign_s; int size_s = 0;
+    s = (short*)calloc(*size_y,sizeof(short));
+    size_s = *size_y;
+    sign_s = *sign_y;
+    memcpy(s,*y,*size_y * sizeof(short));
+    if(comparison(a,b,size_a,size_b)==2){
+        free(*y);
+        *size_y = *size_x;
+        *sign_y = *sign_x;
+        *y = (short*)calloc(*size_y,sizeof(short));
+        memcpy(*y,*x,*size_x*sizeof(short));
+    }
+    else {
+        *y = delenie(a,b,size_a,size_b,size_y,1,y);
+        *y = umnojenie(*y,s,*size_y,size_s,size_y,1,y);
+        if (*sign_x == *sign_y){
+            if (comparison(*x, *y, *size_x, *size_y) == 2){
+                if(*sign_y==0) *sign_y = 1;
+                else *sign_y = 0;
+            }
+            *y = long_subtraction(*y,*x,*size_y,*size_x,size_y,1,y);
+        }else{
+            *sign_y = *sign_x;
+            *y = slojenie(*y,*x,*size_y,*size_x,size_y,1,y);
+        }
+    }
+    free(*x); *x = NULL;
+    *x = (short*)calloc(size_s,sizeof(short));
+    *size_x = size_s;
+    *sign_x = sign_s;
+    memcpy(*x,s,size_s * sizeof(short));
+    free(s);
+    free(mod);
+}
+short *long_gcd_main(short *number,short *module, int size_number, int size_module, int *size_result)
+{
+    short *x = NULL, *y = NULL, *d = NULL, sign_x = 0,sign_y = 0;
+    int size_x = 0, size_y = 0, size_d = 0;
+    long_gcd(number,size_number,module,size_module,&d,&size_d,&x,&size_x,&y,&size_y,&sign_x,&sign_y);
+    *size_result = size_x;
+    if(sign_x==1){
+        x = long_subtraction(x,module,size_x,size_module,&size_x,1,&x);
+    }
+    free(y);
+    return x;
+}
 short *simple_euclid(short *a, short *b, int size_a, int size_b, int *result_size_ptr)
 {
     int size_a_copy = size_a, size_b_copy = size_b, *size_a_copy_prt = &size_a_copy, *size_b_copy_prt = &size_b_copy;
@@ -297,7 +422,7 @@ short *simple_euclid(short *a, short *b, int size_a, int size_b, int *result_siz
         else b_copy = module_func(b_copy,a_copy,size_b_copy,size_a_copy,size_b_copy_prt,1,ptr_b_copy);
         ptr_b_copy = &b_copy;
     }
-    return slojenie(a_copy,b_copy,size_a_copy,size_b_copy,result_size_ptr,0);
+    return slojenie(a_copy,b_copy,size_a_copy,size_b_copy,result_size_ptr,0,NULL);
 }
 short int *module_pow(short int *number, short int *pow, short *module, int size_number, int size_pow, int size_module, int* size_of_result)
 {
@@ -521,11 +646,9 @@ void get_secret_key(char *name_of_file, short **d, short **q, short **p,
                      int *size_d, int *size_q, int *size_p)
 {
     FILE* file = fopen(name_of_file, "r");
-    char tt[50];
     int symbol, counter = 0;
     while((symbol = getc(file))!=(int)':');
     while((symbol = getc(file))!=(int)'\n'&&symbol!=(int)'\r'){
-        tt[*size_p] = (char)symbol;
         ++*size_p;
     }
     while((symbol = getc(file))!=(int)':');
@@ -594,8 +717,7 @@ void rsa_genkey(int size_of_key, char *nameof_public, char *nameof_secret)
         }
     }
     n = umnojenie(q,p,size_q,size_p,pointer_n,0,0);
-    //d = ... генерация ключа - секретный ключ
-    //записываем все ключи в файлы
+    d = long_gcd_main(e,pq,size_e,size_pq,&size_d);
     fprintf(public_file,"n:");
     printff(n,size_n,public_file);
     fprintf(public_file,"e:");
@@ -604,11 +726,11 @@ void rsa_genkey(int size_of_key, char *nameof_public, char *nameof_secret)
     printff(p,size_p,secret_file);
     fprintf(secret_file,"q:");
     printff(q,size_q,secret_file);
-    /*fprintf(secret_file,"d:");
-    printff(d,size_d,secret_file);*/
+    fprintf(secret_file,"d:");
+    printff(d,size_d,secret_file);
     fclose(secret_file);
     fclose(public_file);
-    free(e);free(q);free(p);free(pq);free(n);free(eq);//free(d);
+    free(e);free(q);free(p);free(pq);free(n);free(eq);free(d);
 }
 void get_public_key(char *name_of_file, short **e, short **n, int *size_e, int *size_n)
 {
@@ -874,6 +996,8 @@ void eg_genkey(int size_of_key, char *nameof_public, char *nameof_secret)
     printff(x,size_x,secret_file);
     fprintf(secret_file,"p:");
     printff(p,size_p,secret_file);
+    fprintf(secret_file,"g:");
+    printff(g,size_g,secret_file);
     fclose(public_file);
     fclose(secret_file);
     free(x);free(p);free(g);free(y);
@@ -908,7 +1032,7 @@ void eg_encrypt(char *name_of_pubkey, char *name_of_infile, char *name_of_outfil
     size_k = rand()%(size_p_1/2) + size_p_1/4;
     k = (short*)calloc(size_k,sizeof(short));
     k[0] = 1;
-    k[size_k-1] = rand()%15+1; //переделать
+    k[size_k-1] = rand()%15+1;
     short *vsp_euq = NULL; int vsp_euq_size, *vsp_euq_size_ptr = &vsp_euq_size, summ = 0;
     short fl_end = 0, fl_size_out = 0;
     while(fl_end==0&&fl_size_out==0){
@@ -994,6 +1118,71 @@ void eg_decrypt(char *name_of_secret, char *name_of_infile, char *name_of_outfil
     fclose(output);
     free(pow);free(p);free(x);free(a);free(b);free(char_output);free(decrypting);
 }
+void eg_sign(char *name_of_secret, char *name_of_infile, char *name_of_signfile)
+{
+    FILE *infile = fopen(name_of_infile, "r");
+    short *infile_char, size_infile_char = 0;
+    int symbol = 0;
+    while((symbol = getc(infile))!=EOF){
+        size_infile_char++;
+    }
+    fclose(infile);
+    int counter = 0;
+    infile = fopen(name_of_infile, "r");
+    infile_char = (short*)calloc(size_infile_char, sizeof(short));
+    while((symbol = getc(infile))!=EOF){
+        infile_char[counter] = symbol;
+        counter++;
+    }
+    fclose(infile);
+    uint16_t crc = CRC_16(infile_char,size_infile_char);
+    uint16_t crc_copy = crc;
+    short crc_size = 4;
+    short *crc_array = (short*)calloc(crc_size, sizeof(short));
+    for(counter = 0; counter<crc_size; counter++){
+        crc_array[counter] = crc_copy%16;
+        crc_copy/=16;
+    }
+    counter = 0;
+    short *p = NULL, *x = NULL, **p_p = &p, **p_x = &x;
+    int size_p = 0, size_x = 0;
+    short *g = NULL; int size_g = 0;
+    get_secret_key(name_of_secret,&g,&p,&x,&size_g,&size_p,&size_x);
+    short *k = NULL; int size_k = 0, *pointer_size_k = &size_k;
+    short _1[1] = {1};
+    short *p_1 = NULL;
+    int size_p_1 = 0, *p_1_size_ptr = &size_p_1;
+    p_1 = long_subtraction(p,_1,size_p,1,p_1_size_ptr,0,NULL);
+    short fl_for_exit = 0;
+    short *eq = NULL; int size_eq = 0;
+    while(fl_for_exit==0){
+        k = gen_pubkey(&size_k);
+        eq = simple_euclid(k,p_1,size_k,size_p_1,&size_eq);
+        if(eq[0]==1&&size_eq==1) fl_for_exit=1;
+        else{
+            free(k);
+            k = NULL;
+        }
+    }
+    short *r = NULL;
+    int size_r = 0;
+    r = module_pow(g,k,p,size_g,size_k,size_p,&size_r);
+    short *k_euq = NULL; int size_k_euq = 0;
+    k_euq = long_gcd_main(k,p_1,size_k,size_p_1,&size_k_euq);
+    short *s = NULL, znak = 0; int size_s = 0;
+    s = umnojenie(r,x,size_r,size_x,&size_s,0,NULL);
+    s = module_func(s,p_1,size_s,size_p_1,&size_s,1,&s);
+    if(comparison(s,crc_array,size_s,crc_size)==1) znak = 1;
+    s = long_subtraction(s,crc_array,size_s,crc_size,&size_s,1,&s);
+    if(znak==1) s = long_subtraction(s,p_1,size_s,size_p_1,&size_s,1,&s);
+    s = umnojenie(s,k_euq,size_s,size_k_euq,&size_s,1,&s);
+    s = module_func(s,p_1,size_s,size_p_1,&size_s,1,&s);
+    FILE *output = fopen(name_of_signfile, "w");
+    printff(r,size_r,output);
+    printff(s,size_s,output);
+    fclose(output);
+    free(g);free(p);free(p_1);free(x);free(s);free(infile_char);free(crc_array);free(r);free(k);free(k_euq);
+}
 void eg_check(char *name_of_pubkey, char *name_of_infile, char *name_of_signfile)
 {
     FILE *infile = fopen(name_of_infile, "r");
@@ -1057,7 +1246,7 @@ void eg_check(char *name_of_pubkey, char *name_of_infile, char *name_of_signfile
     counter = 0;
     input = fopen(name_of_signfile, "r");
     while((symbol = getc(input))!=(int)'\n'){
-        if(symbol<58) a[size_r - counter - 1] = symbol - 48;
+        if(symbol<58) r[size_r - counter - 1] = symbol - 48;
         else r[size_r - counter - 1] = symbol - 55;
         counter++;
     }
@@ -1068,12 +1257,12 @@ void eg_check(char *name_of_pubkey, char *name_of_infile, char *name_of_signfile
         counter++;
     }
     fclose(input);
-    if(comparison(r,p,size_r,size_p)==2){
+    if(comparison(r,p,size_r,size_p)==1){
         printf("Signature in incorrect\n");
         free(infile_char);free(crc_array);free(sign_char);free(sign);free(p);free(r);free(g);free(y);
         return;
     }
-    if(comparison(sign,p,size_sign,size_p)==2){
+    if(comparison(sign,p,size_sign,size_p)==1){
         printf("Signature in incorrect\n");
         free(infile_char);free(crc_array);free(sign_char);free(sign);free(p);free(r);free(g);free(y);
         return;
@@ -1107,9 +1296,13 @@ int main() {
     char com_eg[] = "crypt eg\n";
     char com_rsa[] = "crypt rsa\n";
     short fl_rsa = 1, fl_eg = 0;
-    char main_string[500] = {'\0'};
+    char main_string[size_of_vvod] = {'\0'};
     while (fl_for_exit==0){
         vvod(main_string);
+        if(main_string[0]=='\0'){
+            printf("Command line symbols overflow, please try again\n");
+            goto skip;
+        }
         if(strncmp(main_string, com_help,13)==0){
             int symbol = 0;
             FILE *help = fopen("help.txt", "r");
@@ -1135,8 +1328,8 @@ int main() {
             char *char_size = "--size";
             char *char_pubkey = "--pubkey";
             char *char_secret = "--secret";
-            char *name_pubkey;
-            char *name_secret;
+            char *name_pubkey = NULL;
+            char *name_secret = NULL;
             int size = 0;
             char *start = strstr(main_string, char_size);
             short count = 0, count_file = 0;
@@ -1221,9 +1414,9 @@ int main() {
             char *char_infile = "--infile";
             char *char_outfile = "--outfile";
             char *char_pubkey = "--pubkey";
-            char *name_infile;
-            char *name_pubkey;
-            char *name_outfile;
+            char *name_infile = NULL;
+            char *name_pubkey = NULL;
+            char *name_outfile = NULL;
             char *start = strstr(main_string, char_infile);
             short count = 0, count_file = 0;
             if(start==NULL){
@@ -1249,7 +1442,6 @@ int main() {
                     printf("Error with file %s, please try again\n", name_infile);
                     fl_for_error = 1;
                 } else fclose(infile);
-                //
                 start = strstr(main_string, char_pubkey);
                 if(start==NULL){
                     if(fl_for_error==0) printf("Error, please try again\n");
@@ -1276,7 +1468,6 @@ int main() {
                         fl_for_error = 1;
                     } else fclose(pubkey);
                 }
-                //
                 start = strstr(main_string, char_outfile);
                 if(start==NULL){
                     if(fl_for_error==0) printf("Error, please try again\n");
@@ -1315,9 +1506,9 @@ int main() {
             char *char_infile = "--infile";
             char *char_outfile = "--outfile";
             char *char_secret = "--secret";
-            char *name_infile;
-            char *name_secret;
-            char *name_outfile;
+            char *name_infile = NULL;
+            char *name_secret = NULL;
+            char *name_outfile = NULL;
             char *start = strstr(main_string, char_infile);
             short count = 0, count_file = 0;
             if(start==NULL){
@@ -1343,7 +1534,6 @@ int main() {
                     printf("Error with file %s, please try again\n", name_infile);
                     fl_for_error = 1;
                 } else fclose(infile);
-                //
                 start = strstr(main_string, char_secret);
                 if(start==NULL){
                     if(fl_for_error==0) printf("Error, please try again\n");
@@ -1408,9 +1598,9 @@ int main() {
             char *char_infile = "--infile";
             char *char_sigfile = "--sigfile";
             char *char_secret = "--secret";
-            char *name_infile;
-            char *name_secret;
-            char *name_sigfile;
+            char *name_infile = NULL;
+            char *name_secret = NULL;
+            char *name_sigfile = NULL;
             char *start = strstr(main_string, char_infile);
             short count = 0, count_file = 0;
             if(start==NULL){
@@ -1436,7 +1626,6 @@ int main() {
                     printf("Error with file %s, please try again\n", name_infile);
                     fl_for_error = 1;
                 } else fclose(infile);
-                //
                 start = strstr(main_string, char_secret);
                 if(start==NULL){
                     if(fl_for_error==0) printf("Error, please try again\n");
@@ -1463,7 +1652,6 @@ int main() {
                         fl_for_error = 1;
                     } else fclose(secret);
                 }
-                //
                 start = strstr(main_string, char_sigfile);
                 if(start==NULL){
                     if(fl_for_error==0) printf("Error, please try again\n");
@@ -1492,6 +1680,7 @@ int main() {
                 }
                 if (fl_for_error==0){
                     if(fl_rsa==1) rsa_sign(name_secret,name_infile,name_sigfile);
+                    if(fl_eg==1) eg_sign(name_secret,name_infile,name_sigfile);
                     printf("Success!\n");
                 } else fl_for_error = 0;
             }
@@ -1501,9 +1690,9 @@ int main() {
             char *char_infile = "--infile";
             char *char_sigfile = "--sigfile";
             char *char_pubkey = "--pubkey";
-            char *name_infile;
-            char *name_pubkey;
-            char *name_sigfile;
+            char *name_infile = NULL;
+            char *name_pubkey = NULL;
+            char *name_sigfile = NULL;
             char *start = strstr(main_string, char_infile);
             short count = 0, count_file = 0;
             if(start==NULL){
@@ -1529,7 +1718,6 @@ int main() {
                     printf("Error with file %s, please try again\n", name_infile);
                     fl_for_error = 1;
                 } else fclose(infile);
-                //
                 start = strstr(main_string, char_pubkey);
                 if(start==NULL){
                     if(fl_for_error==0) printf("Error, please try again\n");
@@ -1556,7 +1744,6 @@ int main() {
                         fl_for_error = 1;
                     } else fclose(pubkey);
                 }
-                //
                 start = strstr(main_string, char_sigfile);
                 if(start==NULL){
                     if(fl_for_error==0) printf("Error, please try again\n");
@@ -1600,7 +1787,8 @@ int main() {
         if (counter_for_error<8){
             printf("Error, please try again\n");
         }
-        for(int i = 0; i<150; i++){
+        skip:
+        for(int i = 0; i<size_of_vvod; i++){
             main_string[i] = '\0';
         }
         counter_for_error = 0;
