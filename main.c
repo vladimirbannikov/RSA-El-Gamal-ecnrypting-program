@@ -51,10 +51,11 @@ void vvod(char *input)
     while((symbol = getc(stdin))!='\n'){
         if(count==size_of_vvod){
             input[0] = '\0';
-            return;
         }
-        input[count] = (char)symbol;
-        count++;
+        if(count<size_of_vvod) {
+            input[count] = (char) symbol;
+            count++;
+        }
     }
     input[count] = '\n';
 }
@@ -239,6 +240,7 @@ short int* long_subtraction(short int* a, short int* b, int size_a, int size_b, 
     *size_of_result = length;
     return xy;
 }
+
 short int *module_func(short int *number, short *module, int size_number, int size_module, int *pointer_size_number, int free_number, short **ptr_number)
 {
     short int *result = NULL, **ptr_result;
@@ -291,48 +293,42 @@ short int *module_func(short int *number, short *module, int size_number, int si
 }
 short* delenie(short *number, short* delitel, int size_number, int size_delitel, int* pointer_size_rez, int free_number, short** ptr_number)
 {
-    int size_cur = size_delitel + 1, size_rezult = size_number;
-    short* current_number = (short*)calloc(size_cur, sizeof(short));
-    short* rezult = (short*)calloc(size_number, sizeof(short));
-    size_cur = 0;
-    for (int i = size_number - 1; i >= 0; i--)
+    int size_cur = 1, size_rezult = size_number;
+    int size_cur_2 = 1;
+    short* res = (short*)calloc(size_number, sizeof(short));
+    short* curValue = (short*)calloc(size_cur, sizeof(short));
+    short* cur = NULL;
+    for (int i = size_number-1; i>=0; i--)
     {
-        if (size_cur > 0)
-        {
-            int t = 0;
-            for (int j = size_cur; j >= 0; j--)/**/
-            {
-                current_number[j + 1] = current_number[j];
-            }
-            current_number[0] = number[i];
-            size_cur++;
+        LevelUp(&curValue, &size_cur);
+        curValue[0] = number[i];
+        int x = 0;
+        int l = 0, r = 16;
+        while (l <= r) {
+            int m = (l + r) >> 1;
+            cur = umnojenie_short(delitel,m,size_delitel,&size_cur_2,0,NULL);
+            if(comparison(cur, curValue, size_cur_2, size_cur) != 1){
+                x = m;
+                l = m + 1;
+            } else r = m - 1;
+            free(cur);
         }
-        else
-        {
-            current_number[0] = number[i];
-            size_cur++;
-        }
-        short cur_rez = 0;
-        while (comparison(current_number, delitel, size_cur, size_delitel) != 2&&comparison(current_number, delitel, size_cur, size_delitel) != 0)
-        {
-            current_number = long_subtraction(current_number, delitel, size_cur, size_delitel, &size_cur, 1, &current_number);
-            cur_rez++;
-        }
-        rezult[i] = cur_rez;
+        res[i] = x;
+        cur = umnojenie_short(delitel,x,size_delitel,&size_cur_2,0,NULL);
+        curValue = long_subtraction(curValue,cur,size_cur,size_cur_2,&size_cur,1,&curValue);
+        free(cur);
     }
-    for(int i = 0; i<size_rezult-1;i++){
-        rezult[i + 1] += (rezult[i] / 16);
-        rezult[i] = rezult[i] % 16;
-    }
-    if(rezult[size_rezult-1]==0){
-        while (rezult[size_rezult - 1] == 0)
+
+    free(curValue);
+    if(res[size_rezult-1]==0){
+        while (res[size_rezult - 1] == 0)
             size_rezult--;
         short *vsp = (short*)calloc(size_rezult, sizeof(short int));
-        memcpy(vsp,rezult,size_rezult*sizeof(short));
-        free(rezult);
-        rezult = NULL;
-        rezult = (short*)calloc(size_rezult, sizeof(short));
-        memcpy(rezult,vsp,size_rezult*sizeof(short));
+        memcpy(vsp,res,size_rezult*sizeof(short));
+        free(res);
+        res = NULL;
+        res = (short*)calloc(size_rezult, sizeof(short));
+        memcpy(res,vsp,size_rezult*sizeof(short));
         free(vsp);
     }
     if(free_number==1){
@@ -340,7 +336,7 @@ short* delenie(short *number, short* delitel, int size_number, int size_delitel,
         *ptr_number = NULL;
     }
     *pointer_size_rez = size_rezult;
-    return rezult;
+    return res;
 }
 void long_gcd(short *a, int size_a, short *b, int size_b, short **d, int *size_d, short **x, int *size_x, short **y, int *size_y, short *sign_x,short *sign_y)
 {
@@ -1296,8 +1292,10 @@ int main() {
     char com_eg[] = "crypt eg\n";
     char com_rsa[] = "crypt rsa\n";
     short fl_rsa = 1, fl_eg = 0;
+    clock_t begin;
     char main_string[size_of_vvod] = {'\0'};
     while (fl_for_exit==0){
+        begin = clock();
         vvod(main_string);
         if(main_string[0]=='\0'){
             printf("Command line symbols overflow, please try again\n");
@@ -1792,6 +1790,12 @@ int main() {
             main_string[i] = '\0';
         }
         counter_for_error = 0;
+        clock_t end = clock();
+        double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+        printf("time: %f sec\n",time_spent);
     }
+
+
     return 0;
 }
+  
