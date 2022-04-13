@@ -1,4 +1,4 @@
-# courcework
-мужиииик надо делать курсач
-!!!!!
+# RSA and El-Gamal encrypting/decrypting program
+
+
 
